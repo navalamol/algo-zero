@@ -21,7 +21,11 @@ import {
   ShowChart,
   TrendingUp,
   History,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Radar as RadarIcon,
+  Search as SearchIcon,
+  GridView,
+  NotificationsActive
 } from '@mui/icons-material';
 
 import Dashboard from './components/Dashboard/Dashboard';
@@ -29,6 +33,10 @@ import StockFilter from './components/StockFilter/StockFilter';
 import StrategyBuilder from './components/StrategyBuilder/StrategyBuilder';
 import TradeHistory from './components/TradeHistory/TradeHistory';
 import Settings from './components/Settings/Settings';
+import RadarDashboard from './components/RadarDashboard/RadarDashboard';
+import StockScanner from './components/StockScanner/StockScanner';
+import SectorHeatmap from './components/Heatmap/SectorHeatmap';
+import AlertManager from './components/AlertManager/AlertManager';
 import socketService from './services/socket.service';
 
 const drawerWidth = 240;
@@ -82,6 +90,10 @@ function App() {
     { text: 'Stock Filter', icon: <ShowChart />, path: '/filter' },
     { text: 'Strategies', icon: <TrendingUp />, path: '/strategies' },
     { text: 'Trade History', icon: <History />, path: '/trades' },
+    { text: 'Order Radar', icon: <RadarIcon />, path: '/radar' },
+    { text: 'Scanner', icon: <SearchIcon />, path: '/scanner' },
+    { text: 'Heatmap', icon: <GridView />, path: '/heatmap' },
+    { text: 'Alerts', icon: <NotificationsActive />, path: '/alerts' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
@@ -149,6 +161,10 @@ function App() {
                 <Route path="/strategies" element={<StrategyBuilder />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/trades" element={<TradeHistory />} />
+                <Route path="/radar" element={<RadarDashboard />} />
+                <Route path="/scanner" element={<StockScanner />} />
+                <Route path="/heatmap" element={<SectorHeatmap />} />
+                <Route path="/alerts" element={<AlertManager />} />
               </Routes>
             </Container>
           </Box>

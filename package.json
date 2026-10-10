@@ -6,8 +6,11 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
+    "debug": "node --inspect backend/server.js",
+    "debug:brk": "node --inspect-brk backend/server.js",
+    "debug:watch": "nodemon --inspect backend/server.js",
     "client": "cd client && npm start",
-    "dev:all": "concurrently \"npm run dev\" \"npm run client\"",
+    "dev:all": "concurrently \"npm run debug:watch\" \"npm run client\"",
     "install:all": "npm install && cd client && npm install",
     "build": "cd client && npm run build",
     "create-profile": "node create-profile.js"

@@ -81,32 +81,38 @@ const apiService = {
 
   // Strategy endpoints
   getStrategies: () => {
-    return axios.get(`${API_BASE_URL}/strategy`);
+    return axios.get(`${API_BASE_URL}/strategies`);
   },
 
   getStrategy: (id) => {
-    return axios.get(`${API_BASE_URL}/strategy/${id}`);
+    return axios.get(`${API_BASE_URL}/strategies/${id}`);
   },
 
   createStrategy: (data) => {
-    return axios.post(`${API_BASE_URL}/strategy`, data);
+    return axios.post(`${API_BASE_URL}/strategies`, data);
   },
 
   updateStrategy: (id, data) => {
-    return axios.put(`${API_BASE_URL}/strategy/${id}`, data);
+    return axios.put(`${API_BASE_URL}/strategies/${id}`, data);
   },
 
   toggleStrategy: (id) => {
-    return axios.post(`${API_BASE_URL}/strategy/${id}/toggle`);
+    return axios.post(`${API_BASE_URL}/strategies/${id}/toggle`);
   },
 
   deleteStrategy: (id) => {
-    return axios.delete(`${API_BASE_URL}/strategy/${id}`);
+    return axios.delete(`${API_BASE_URL}/strategies/${id}`);
   },
 
   getActiveSignals: () => {
-    return axios.get(`${API_BASE_URL}/strategy/signals/active`);
-  }
+    return axios.get(`${API_BASE_URL}/strategies/signals/active`);
+  },
+
+  // Generic HTTP helpers for new feature components
+  get: (path, params = {}) => axios.get(`${API_BASE_URL}${path}`, { params }),
+  post: (path, data = {}) => axios.post(`${API_BASE_URL}${path}`, data),
+  put: (path, data = {}) => axios.put(`${API_BASE_URL}${path}`, data),
+  delete: (path) => axios.delete(`${API_BASE_URL}${path}`)
 };
 
 export default apiService;

@@ -106,25 +106,67 @@ class IndicatorsService {
    * @param {Array} prices - Array of prices
    */
   calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
-    if (prices.length < slowPeriod) {
+    if (prices.length < slowPeriod + signalPeriod) {
       return null;
     }
 
-    const emaFast = this.calculateEMA(prices, fastPeriod);
-    const emaSlow = this.calculateEMA(prices, slowPeriod);
-    
-    if (!emaFast || !emaSlow) return null;
+    // Build a series of MACD line values over all available data points
+    const macdSeries = [];
+    for (let i = slowPeriod; i <= prices.length; i++) {
+      const slice = prices.slice(0, i);
+      const fast = this.calculateEMA(slice, fastPeriod);
+      const slow = this.calculateEMA(slice, slowPeriod);
+      if (fast !== null && slow !== null) {
+        macdSeries.push(fast - slow);
+      }
+    }
 
-    const macdLine = emaFast - emaSlow;
+    if (macdSeries.length < signalPeriod) return null;
 
-    // For signal line, we need MACD values array (simplified here)
-    const signalLine = macdLine; // Should calculate EMA of MACD line
-    const histogram = macdLine - signalLine;
+    const macdLine = macdSeries[macdSeries.length - 1];
+    const signalLine = this.calculateEMA(macdSeries, signalPeriod);
+    const histogram = signalLine !== null ? macdLine - signalLine : 0;
 
     return {
-      macd: macdLine,
-      signal: signalLine,
-      histogram: histogram
+      macd: Math.round(macdLine * 10000) / 10000,
+      signal: signalLine !== null ? Math.round(signalLine * 10000) / 10000 : null,
+      histogram: Math.round(histogram * 10000) / 10000
+    };
+  }
+
+  /**
+   * Calculate Stochastic RSI
+   * @param {Array} prices - Array of prices
+   * @param {Number} rsiPeriod - RSI period (default 14)
+   * @param {Number} stochPeriod - Stochastic lookback on RSI (default 14)
+   */
+  calculateStochasticRSI(prices, rsiPeriod = 14, stochPeriod = 14) {
+    if (prices.length < rsiPeriod + stochPeriod + 1) {
+      return null;
+    }
+
+    // Build RSI series
+    const rsiValues = [];
+    for (let i = rsiPeriod + 1; i <= prices.length; i++) {
+      const rsi = this.calculateRSI(prices.slice(0, i), rsiPeriod);
+      if (rsi !== null) rsiValues.push(rsi);
+    }
+
+    if (rsiValues.length < stochPeriod) return null;
+
+    const window = rsiValues.slice(-stochPeriod);
+    const lowestRSI = Math.min(...window);
+    const highestRSI = Math.max(...window);
+    const range = highestRSI - lowestRSI;
+
+    const currentRSI = rsiValues[rsiValues.length - 1];
+    const stochRSI = range === 0 ? 0 : ((currentRSI - lowestRSI) / range) * 100;
+
+    return {
+      value: Math.round(stochRSI * 100) / 100,
+      rsi: currentRSI,
+      overbought: stochRSI > 80,
+      oversold: stochRSI < 20
     };
   }
 
@@ -285,6 +327,9 @@ class IndicatorsService {
       ema12: this.calculateEMA(prices, 12),
       ema26: this.calculateEMA(prices, 26),
       vwap: this.calculateVWAP(priceVolumeData),
+      macd: this.calculateMACD(prices),
+      bollingerBands: this.calculateBollingerBands(prices),
+      stochasticRSI: this.calculateStochasticRSI(prices),
       buyerSellerRatio: this.calculateBuyerSellerRatio(stockData.depth),
       buyerSellerState: this.detectBuyerSellerState(stockData.depth),
       supportResistance: this.detectSupportResistance(prices)

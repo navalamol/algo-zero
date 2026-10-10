@@ -14,12 +14,20 @@ const marketRoutes = require('./routes/market.routes');
 const orderRoutes = require('./routes/order.routes');
 const strategyRoutes = require('./routes/strategy.routes');
 const profileRoutes = require('./routes/profile.routes');
+const radarRoutes = require('./routes/radar.routes');
+const scannerRoutes = require('./routes/scanner.routes');
+const heatmapRoutes = require('./routes/heatmap.routes');
+const alertRoutes = require('./routes/alert.routes');
 
 // Import services
 const TickerService = require('./services/ticker.service');
 const StrategyService = require('./services/strategy.service');
 const authService = require('./services/auth.service');
 const vixService = require('./services/vix.service');
+const RadarService = require('./services/radar.service');
+const ScannerService = require('./services/scanner.service');
+const heatmapService = require('./services/heatmap.service');
+const AlertService = require('./services/alert.service');
 
 const app = express();
 const server = http.createServer(app);
@@ -90,17 +98,27 @@ setTimeout(initializeAuth, 1000);
 // Initialize services
 const tickerService = new TickerService(io);
 const strategyService = new StrategyService(io);
+const radarService = new RadarService(io);
+const scannerService = new ScannerService(io);
+const alertService = new AlertService(io);
 
 // Make services available to routes
 app.locals.tickerService = tickerService;
 app.locals.strategyService = strategyService;
+app.locals.radarService = radarService;
+app.locals.scannerService = scannerService;
+app.locals.alertService = alertService;
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/strategies', strategyRoutes);
-app.use('/api/profiles', profileRoutes);app.use('/api/profiles', profileRoutes);
+app.use('/api/profiles', profileRoutes);
+app.use('/api/radar', radarRoutes);
+app.use('/api/scanner', scannerRoutes);
+app.use('/api/heatmap', heatmapRoutes);
+app.use('/api/alerts', alertRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
@@ -149,6 +167,10 @@ process.on('SIGTERM', () => {
     tickerService.disconnect();
     strategyService.stop();
     vixService.stop();
+    radarService.stop();
+    scannerService.stop();
+    heatmapService.stop();
+    alertService.stop();
     process.exit(0);
   });
 });
@@ -168,12 +190,22 @@ server.listen(PORT, () => {
     
     // Start VIX monitoring
     vixService.start();
-    
+
+    // Start new services
+    radarService.start();
+    scannerService.start();
+    heatmapService.start();
+    alertService.start();
+
     logger.info('✅ All services started successfully');
     logger.info('📈 India VIX monitoring active');
     logger.info('👥 Profile system ready');
     logger.info('📝 Paper trading available');
     logger.info('📱 Telegram notifications configured');
+    logger.info('📡 Order flow radar active');
+    logger.info('🔍 Market scanner ready');
+    logger.info('🗺️  Sector heatmap active');
+    logger.info('🔔 Alert service active');
     
   } catch (error) {
     logger.error('Error starting services:', error);
