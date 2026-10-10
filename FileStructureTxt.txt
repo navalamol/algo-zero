@@ -1,0 +1,25 @@
+AlgoTrading/
+├── backend/               # Node.js/Express backend
+│   ├── server.js         # Main server with WebSocket
+│   ├── config/           # Kite & DB configuration
+│   ├── models/           # MongoDB schemas (Stock, Strategy, Trade, Watchlist)
+│   ├── services/         # Business logic
+│   │   ├── kite.service.js        # Kite API wrapper
+│   │   ├── ticker.service.js      # Real-time WebSocket
+│   │   ├── indicators.service.js  # Technical indicators (RSI, SMA, VWAP, etc.)
+│   │   ├── strategy.service.js    # Strategy engine
+│   │   └── order.service.js       # Order management
+│   ├── controllers/      # API controllers
+│   └── routes/           # Express routes
+├── client/               # React frontend
+│   └── src/
+│       ├── components/
+│       │   ├── Dashboard/          # Real-time dashboard
+│       │   ├── StockFilter/        # Advanced filtering UI
+│       │   ├── StrategyBuilder/    # Visual strategy creation
+│       │   └── TradeHistory/       # Trade tracking
+│       └── services/     # API & WebSocket clients
+├── .env.example          # Environment template
+├── README.md             # Project overview
+├── SETUP_GUIDE.md        # Detailed setup instructions
+└── API_REFERENCE.md      # Complete API documentation

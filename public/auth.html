@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kite Connect - Authentication</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border-left: 4px solid #388e3c;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+            font-weight: 600;
+        }
+        .btn:hover:not(:disabled) {
+            background: #5568d3;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .token-display {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .steps {
+            margin: 30px 0;
+        }
+        .step {
+            display: flex;
+            align-items: start;
+            margin-bottom: 20px;
+        }
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .step-desc {
+            color: #666;
+            font-size: 14px;
+        }
+        .session-info {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+        .info-value {
+            color: #333;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Kite Connect Authentication</h1>
+        <p class="subtitle">Algo Trading Platform - Zerodha Integration</p>
+
+        <div id="statusMessage" class="status info">
+            <strong>Ready to authenticate</strong><br>
+            Click "Login with Kite" to start the authentication process
+        </div>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <div class="step-title">Login with Kite</div>
+                    <div class="step-desc">You'll be redirected to Zerodha Kite login page</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <div class="step-title">Authorize the App</div>
+                    <div class="step-desc">Enter your Kite credentials and authorize</div>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <div class="step-title">Auto-redirect Back</div>
+                    <div class="step-desc">You'll be automatically redirected with access token</div>
+                </div>
+            </div>
+        </div>
+
+        <button id="loginBtn" class="btn">🔑 Login with Kite</button>
+        <button id="validateBtn" class="btn" style="display: none; margin-top: 10px; background: #4caf50;">
+            ✅ Validate Token
+        </button>
+        <button id="logoutBtn" class="btn" style="display: none; margin-top: 10px; background: #f44336;">
+            🚪 Logout
+        </button>
+
+        <div id="sessionInfo" style="display: none;" class="session-info">
+            <h3 style="margin-bottom: 15px; color: #333;">Session Information</h3>
+            <div id="sessionDetails"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        const loginBtn = document.getElementById('loginBtn');
+        const validateBtn = document.getElementById('validateBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const sessionInfo = document.getElementById('sessionInfo');
+        const sessionDetails = document.getElementById('sessionDetails');
+
+        // Check if we're redirected back from Kite with request_token
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestToken = urlParams.get('request_token');
+        const status = urlParams.get('status');
+
+        if (requestToken) {
+            handleRequestToken(requestToken);
+        } else if (status === 'success') {
+            checkLoadedToken();
+        }
+
+        // Login button click
+        loginBtn.addEventListener('click', async () => {
+            try {
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Getting login URL...';
+
+                const response = await fetch(`${API_URL}/auth/login-url`);
+                const data = await response.json();
+
+                if (data.success && data.loginUrl) {
+                    statusMessage.className = 'status info';
+                    statusMessage.innerHTML = '<strong>Redirecting to Kite...</strong><br>Please login and authorize the app';
+                    
+                    // Redirect to Kite login
+                    window.location.href = data.loginUrl;
+                } else {
+                    throw new Error(data.error || 'Failed to get login URL');
+                }
+            } catch (error) {
+                statusMessage.className = 'status error';
+                statusMessage.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🔑 Login with Kite';
+            }
+        });
+
+        // Handle request token from redirect
+        async function handleRequestToken(requestToken) {
+            try {
+                statusMessage.className = 'status info';
+                statusMessage.innerHTML = '<strong>Generating access token...</strong><br>Please wait...';
+                loginBtn.style.display = 'none';
+
+                const response = await fetch(`${API_URL}/auth/generate-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ request_token: requestToken })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusMessage.className = 'status success';
+                    statusMessage.innerHTML = `
+                        <strong>✅ Authentication Successful!</strong><br>
+                        User: ${data.data.user_name} (${data.data.user_id})<br>
+                        Access token has been saved and will be used for API calls
+                    `;
+
+                    // Show session info
+                    await loadSessionInfo();
+                    
+                    validateBtn.style.display = 'block';
+                    logoutBtn.style.display = 'block';
+
+                    // Clear URL parameters
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else {
+                    throw new Error(data.error || 'Failed to generate access token');
+                }
+            } catch (error) {
+                statusMessage.className = 'status error';
+                statusMessage.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                loginBtn.style.display = 'block';
+            }
+        }
+
+        // Load session info
+        async function loadSessionInfo() {
+            try {
+                const response = await fetch(`${API_URL}/auth/session`);
+                const data = await response.json();
+
+                if (data.success) {
+                    sessionInfo.style.display = 'block';
+                    sessionDetails.innerHTML = `
+                        <div class="info-row">
+                            <span class="info-label">User ID:</span>
+                            <span class="info-value">${data.data.user_id}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Name:</span>
+                            <span class="info-value">${data.data.user_name}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Email:</span>
+                            <span class="info-value">${data.data.email || 'N/A'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Broker:</span>
+                            <span class="info-value">${data.data.broker}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Available Cash:</span>
+                            <span class="info-value">₹${data.data.available_cash?.toLocaleString('en-IN') || '0'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Exchanges:</span>
+                            <span class="info-value">${data.data.exchanges?.join(', ') || 'N/A'}</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading session info:', error);
+            }
+        }
+
+        // Check for loaded token on page load
+        async function checkLoadedToken() {
+            try {
+                const response = await fetch(`${API_URL}/auth/load-saved-token`);
+                const data = await response.json();
+
+                if (data.success) {
+                    statusMessage.className = 'status success';
+                    statusMessage.innerHTML = `
+                        <strong>✅ Using Saved Token</strong><br>
+                        User: ${data.data.user_name} (${data.data.user_id})<br>
+                        Generated: ${new Date(data.data.generated_at).toLocaleString()}
+                    `;
+                    
+                    loginBtn.style.display = 'none';
+                    validateBtn.style.display = 'block';
+                    logoutBtn.style.display = 'block';
+                    
+                    await loadSessionInfo();
+                }
+            } catch (error) {
+                // No saved token, that's okay
+            }
+        }
+
+        // Validate token
+        validateBtn.addEventListener('click', async () => {
+            try {
+                validateBtn.disabled = true;
+                validateBtn.textContent = 'Validating...';
+
+                const response = await fetch(`${API_URL}/auth/validate`);
+                const data = await response.json();
+
+                if (data.success && data.valid) {
+                    statusMessage.className = 'status success';
+                    statusMessage.innerHTML = '<strong>✅ Token is valid!</strong><br>You can use the API now';
+                    await loadSessionInfo();
+                } else {
+                    statusMessage.className = 'status error';
+                    statusMessage.innerHTML = '<strong>❌ Token is invalid or expired</strong><br>Please login again';
+                    loginBtn.style.display = 'block';
+                    validateBtn.style.display = 'none';
+                    logoutBtn.style.display = 'none';
+                }
+
+                validateBtn.disabled = false;
+                validateBtn.textContent = '✅ Validate Token';
+            } catch (error) {
+                statusMessage.className = 'status error';
+                statusMessage.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                validateBtn.disabled = false;
+                validateBtn.textContent = '✅ Validate Token';
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                logoutBtn.disabled = true;
+                logoutBtn.textContent = 'Logging out...';
+
+                const response = await fetch(`${API_URL}/auth/logout`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    statusMessage.className = 'status info';
+                    statusMessage.innerHTML = '<strong>Logged out successfully</strong><br>Click "Login with Kite" to authenticate again';
+                    
+                    loginBtn.style.display = 'block';
+                    validateBtn.style.display = 'none';
+                    logoutBtn.style.display = 'none';
+                    sessionInfo.style.display = 'none';
+                } else {
+                    throw new Error(data.error || 'Logout failed');
+                }
+
+                logoutBtn.disabled = false;
+                logoutBtn.textContent = '🚪 Logout';
+            } catch (error) {
+                statusMessage.className = 'status error';
+                statusMessage.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                logoutBtn.disabled = false;
+                logoutBtn.textContent = '🚪 Logout';
+            }
+        });
+
+        // Try to load saved token on page load
+        checkLoadedToken();
+    </script>
+</body>
+</html>
