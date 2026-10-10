@@ -2,11 +2,11 @@ const cron = require('node-cron');
 const logger = require('../utils/logger');
 const Strategy = require('../models/Strategy.model');
 const Stock = require('../models/Stock.model');
-const Watchlist = require('../models/Watchlist.model');
 const orderService = require('./order.service');
-const indicatorsService = require('./indicators.service');
 const { isDemoModeDb } = require('../config/kite.config');
 const memoryStore = require('./memory-store.service');
+const vixService = require('./vix.service');
+const { applyVIXAdjustment } = require('../config/trading.config');
 
 class StrategyService {
   constructor(io) {
@@ -300,14 +300,29 @@ class StrategyService {
     try {
       const tradeConfig = strategy.tradeConfig;
       
-      // Prepare order parameters
+      // Get current VIX for volatility-based adjustments
+      const currentVIX = vixService.getCurrentVIX();
+      const marketCondition = vixService.getMarketCondition();
+      
+      // Apply VIX adjustments to trading parameters
+      const adjustedParams = applyVIXAdjustment({
+        stopLoss: tradeConfig.stopLoss,
+        takeProfit: tradeConfig.takeProfit,
+        quantity: tradeConfig.quantity || 1
+      }, currentVIX);
+      
+      logger.info(`📊 VIX Adjustment: ${currentVIX.toFixed(2)} (${marketCondition}) - Qty: ${tradeConfig.quantity} → ${adjustedParams.quantity}, Stop: ${tradeConfig.stopLoss}% → ${adjustedParams.stopLoss.toFixed(2)}%`);
+      
+      // Prepare order parameters with adjusted values
       const orderParams = {
         tradingsymbol: stock.tradingSymbol,
         exchange: stock.exchange,
         transaction_type: tradeConfig.transactionType,
-        quantity: tradeConfig.quantity || 1,
+        quantity: adjustedParams.quantity,
         order_type: tradeConfig.orderType || 'MARKET',
-        product: tradeConfig.product || 'CNC'
+        product: tradeConfig.product || 'CNC',
+        stopLoss: adjustedParams.stopLoss,
+        takeProfit: adjustedParams.takeProfit
       };
 
       // Add limit price if order type is LIMIT
@@ -315,11 +330,12 @@ class StrategyService {
         orderParams.price = stock.lastPrice;
       }
 
-      // Place order
+      // Place order with profile name (if strategy has associated profile)
       const result = await orderService.placeOrder(
         orderParams,
         strategy._id,
-        signal.data
+        signal.data,
+        strategy.profileName || null
       );
 
       if (result.success) {

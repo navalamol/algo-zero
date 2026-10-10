@@ -9,7 +9,8 @@
     "client": "cd client && npm start",
     "dev:all": "concurrently \"npm run dev\" \"npm run client\"",
     "install:all": "npm install && cd client && npm install",
-    "build": "cd client && npm run build"
+    "build": "cd client && npm run build",
+    "create-profile": "node create-profile.js"
   },
   "keywords": ["zerodha", "kite", "algo-trading", "trading-bot"],
   "author": "",

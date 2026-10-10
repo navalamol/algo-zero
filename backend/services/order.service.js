@@ -4,6 +4,9 @@ const logger = require('../utils/logger');
 const { RateLimiter, validateOrderParams, isMarketOpen } = require('../utils/helpers');
 const Trade = require('../models/Trade.model');
 const memoryStore = require('./memory-store.service');
+const paperTradingService = require('./paper-trading.service');
+const telegramService = require('./telegram.service');
+const profileService = require('./profile.service');
 
 class OrderService {
   constructor() {
@@ -16,10 +19,23 @@ class OrderService {
   /**
    * Place an order
    */
-  async placeOrder(orderParams, strategyId = null, signalData = null) {
+  async placeOrder(orderParams, strategyId = null, signalData = null, profileName = null) {
     try {
       // Validate order parameters
       validateOrderParams(orderParams);
+      
+      // Get profile config if provided
+      let profileConfig = null;
+      if (profileName) {
+        try {
+          profileConfig = await profileService.getProfileConfig(profileName);
+        } catch (error) {
+          logger.warn(`Profile ${profileName} not found, using defaults`);
+        }
+      }
+      
+      // Check if paper trading is enabled for this profile
+      const isPaperTrading = profileConfig?.trading?.paperTrading || false;
       
       // Check if auto-trading is enabled
       if (process.env.ENABLE_AUTO_TRADING !== 'true') {
@@ -42,6 +58,7 @@ class OrderService {
       let trade;
       const tradeData = {
         userId: 'default',
+        profileName,
         strategyId,
         strategyName: strategyId ? 'Strategy' : 'Manual',
         tradingSymbol: orderParams.tradingsymbol,
@@ -52,6 +69,8 @@ class OrderService {
         product: orderParams.product,
         price: orderParams.price,
         triggerPrice: orderParams.trigger_price,
+        stopLoss: orderParams.stopLoss,
+        takeProfit: orderParams.takeProfit,
         placedAt: new Date(),
         status: 'PENDING',
         signalData
@@ -64,12 +83,35 @@ class OrderService {
         await trade.save();
       }
       
-      // Place order via Kite API or mock
+      // Place order via Paper Trading, Kite API, or Mock
       await this.rateLimiter.throttle();
       
-      const response = this.demoMode 
-        ? await mockService.placeOrder(orderParams.variety || 'regular', orderParams)
-        : await this.kite.placeOrder(orderParams.variety || 'regular', orderParams);
+      let response;
+      if (isPaperTrading) {
+        // Use paper trading service
+        response = await paperTradingService.placeOrder({
+          tradingSymbol: orderParams.tradingsymbol,
+          transactionType: orderParams.transaction_type,
+          quantity: orderParams.quantity,
+          orderType: orderParams.order_type,
+          price: orderParams.price,
+          product: orderParams.product
+        });
+        
+        if (!response.success) {
+          throw new Error(response.error || 'Paper trading order failed');
+        }
+        
+        // Convert paper trading response to Kite-like format
+        response = {
+          order_id: response.orderId,
+          status: 'COMPLETE'
+        };
+      } else if (this.demoMode) {
+        response = await mockService.placeOrder(orderParams.variety || 'regular', orderParams);
+      } else {
+        response = await this.kite.placeOrder(orderParams.variety || 'regular', orderParams);
+      }
       
       // Update trade with order ID
       if (isDemoModeDb()) {
@@ -85,12 +127,28 @@ class OrderService {
       
       this.pendingOrders.set(response.order_id, trade._id);
       
-      logger.info(`Order placed successfully: ${response.order_id}`);
+      logger.info(`${isPaperTrading ? '📝 Paper' : '💰 Real'} Order placed successfully: ${response.order_id}`);
+      
+      // Send Telegram notification if configured
+      if (profileConfig?.trading?.notifications?.telegram?.enabled) {
+        const telegram = profileConfig.trading.notifications.telegram;
+        if (telegram.onTradeExecuted) {
+          telegramService.notifyTradeExecuted(telegram.chatId, {
+            transactionType: orderParams.transaction_type,
+            tradingSymbol: orderParams.tradingsymbol,
+            quantity: orderParams.quantity,
+            price: orderParams.price,
+            strategyName: tradeData.strategyName,
+            orderId: response.order_id
+          });
+        }
+      }
       
       return {
         success: true,
         orderId: response.order_id,
-        tradeId: trade._id
+        tradeId: trade._id,
+        isPaperTrade: isPaperTrading
       };
       
     } catch (error) {
@@ -220,6 +278,7 @@ class OrderService {
         return;
       }
       
+      const previousStatus = trade.status;
       trade.status = orderUpdate.status;
       
       if (orderUpdate.average_price) {
@@ -229,6 +288,49 @@ class OrderService {
       
       if (orderUpdate.status === 'COMPLETE') {
         trade.executedAt = new Date();
+        
+        // Check if this is an exit order (stop-loss or target hit)
+        if (trade.profileName && (previousStatus === 'OPEN' || previousStatus === 'PENDING')) {
+          const profileConfig = await profileService.getProfileConfig(trade.profileName);
+          
+          if (profileConfig?.trading?.notifications?.telegram?.enabled) {
+            const telegram = profileConfig.trading.notifications.telegram;
+            const currentPrice = orderUpdate.average_price || trade.averagePrice;
+            const pnl = trade.transactionType === 'SELL' 
+              ? ((currentPrice - trade.entryPrice) * trade.quantity)
+              : ((trade.entryPrice - currentPrice) * trade.quantity);
+            const pnlPercent = ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100;
+            
+            // Check if stop-loss was hit
+            if (trade.stopLoss && currentPrice <= (trade.entryPrice * (1 - trade.stopLoss/100))) {
+              if (telegram.onStopLoss) {
+                await telegramService.notifyStopLossHit(telegram.chatId, {
+                  symbol: trade.tradingSymbol,
+                  quantity: trade.quantity,
+                  entryPrice: trade.entryPrice,
+                  exitPrice: currentPrice,
+                  stopLoss: trade.stopLoss,
+                  loss: Math.abs(pnl),
+                  lossPercent: Math.abs(pnlPercent)
+                });
+              }
+            }
+            // Check if target was hit
+            else if (trade.takeProfit && currentPrice >= (trade.entryPrice * (1 + trade.takeProfit/100))) {
+              if (telegram.onTarget) {
+                await telegramService.notifyTargetReached(telegram.chatId, {
+                  symbol: trade.tradingSymbol,
+                  quantity: trade.quantity,
+                  entryPrice: trade.entryPrice,
+                  exitPrice: currentPrice,
+                  target: trade.takeProfit,
+                  profit: pnl,
+                  profitPercent: pnlPercent
+                });
+              }
+            }
+          }
+        }
       }
       
       if (orderUpdate.status === 'REJECTED') {

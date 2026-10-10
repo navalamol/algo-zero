@@ -13,11 +13,13 @@ const authRoutes = require('./routes/auth.routes');
 const marketRoutes = require('./routes/market.routes');
 const orderRoutes = require('./routes/order.routes');
 const strategyRoutes = require('./routes/strategy.routes');
+const profileRoutes = require('./routes/profile.routes');
 
 // Import services
 const TickerService = require('./services/ticker.service');
 const StrategyService = require('./services/strategy.service');
 const authService = require('./services/auth.service');
+const vixService = require('./services/vix.service');
 
 const app = express();
 const server = http.createServer(app);
@@ -97,8 +99,8 @@ app.locals.strategyService = strategyService;
 app.use('/api/auth', authRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/strategy', strategyRoutes);
-
+app.use('/api/strategies', strategyRoutes);
+app.use('/api/profiles', profileRoutes);app.use('/api/profiles', profileRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
@@ -146,6 +148,7 @@ process.on('SIGTERM', () => {
     logger.info('HTTP server closed');
     tickerService.disconnect();
     strategyService.stop();
+    vixService.stop();
     process.exit(0);
   });
 });
@@ -156,11 +159,25 @@ server.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV}`);
   
-  // Initialize ticker service
-  tickerService.connect();
-  
-  // Start strategy engine
-  strategyService.start();
+  try {
+    // Initialize ticker service
+    tickerService.connect();
+    
+    // Start strategy engine
+    strategyService.start();
+    
+    // Start VIX monitoring
+    vixService.start();
+    
+    logger.info('✅ All services started successfully');
+    logger.info('📈 India VIX monitoring active');
+    logger.info('👥 Profile system ready');
+    logger.info('📝 Paper trading available');
+    logger.info('📱 Telegram notifications configured');
+    
+  } catch (error) {
+    logger.error('Error starting services:', error);
+  }
 });
 
 module.exports = { app, server, io };

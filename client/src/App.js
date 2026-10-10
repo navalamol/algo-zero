@@ -28,6 +28,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import StockFilter from './components/StockFilter/StockFilter';
 import StrategyBuilder from './components/StrategyBuilder/StrategyBuilder';
 import TradeHistory from './components/TradeHistory/TradeHistory';
+import Settings from './components/Settings/Settings';
 import socketService from './services/socket.service';
 
 const drawerWidth = 240;
@@ -81,6 +82,7 @@ function App() {
     { text: 'Stock Filter', icon: <ShowChart />, path: '/filter' },
     { text: 'Strategies', icon: <TrendingUp />, path: '/strategies' },
     { text: 'Trade History', icon: <History />, path: '/trades' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
   return (
@@ -145,6 +147,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/filter" element={<StockFilter />} />
                 <Route path="/strategies" element={<StrategyBuilder />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/trades" element={<TradeHistory />} />
               </Routes>
             </Container>

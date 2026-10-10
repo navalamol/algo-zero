@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
 const tradeSchema = new mongoose.Schema({
+  // User profile reference
+  profileName: String,
+  
   // Reference to strategy
   strategyId: {
     type: mongoose.Schema.Types.ObjectId,

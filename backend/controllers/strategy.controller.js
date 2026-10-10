@@ -1,6 +1,6 @@
 const Strategy = require('../models/Strategy.model');
 const logger = require('../utils/logger');
-const { isDemoModeDb } = require('../config/kite.config');
+const { isDemoModeDb, isDemoMode } = require('../config/kite.config');
 const memoryStore = require('../services/memory-store.service');
 
 /**
